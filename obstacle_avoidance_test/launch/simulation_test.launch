@@ -1,0 +1,48 @@
+<launch>
+  <!-- 启动Gazebo仿真环境 -->
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="world_name" value="$(find obstacle_avoidance_test)/worlds/obstacles.world"/>
+    <arg name="paused" value="false"/>
+    <arg name="use_sim_time" value="true"/>
+    <arg name="gui" value="true"/>
+    <arg name="headless" value="false"/>
+    <arg name="debug" value="false"/>
+  </include>
+  
+  <!-- 加载机器人模型 -->
+  <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find obstacle_avoidance_test)/urdf/drone_sensors.urdf.xacro'"/>
+  
+  <!-- 生成虚拟激光雷达数据 -->
+  <node name="velodyne_simulator" pkg="velodyne_simulator" type="velodyne_simulator_node">
+    <param name="rpm" value="600"/>
+    <param name="frame_id" value="lidar_frame"/>
+  </node>
+  
+  <!-- 启动障碍物避障算法 -->
+  <include file="$(find obstacle_avoidance_test)/launch/obstacle_avoidance_test.launch">
+    <arg name="lidar_topic" value="/velodyne_simulator/velodyne_points"/>
+    <arg name="camera_topic" value="/camera/rgb/image_raw"/>
+    <arg name="depth_topic" value="/camera/depth/image_raw"/>
+  </include>
+  
+  <!-- 发布机器人位置 -->
+  <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher">
+    <param name="publish_frequency" type="double" value="50.0"/>
+  </node>
+  
+  <!-- 发布关节状态 -->
+  <node pkg="joint_state_publisher" type="joint_state_publisher" name="joint_state_publisher"/>
+  
+  <!-- 键盘控制节点，用于测试 -->
+  <node pkg="teleop_twist_keyboard" type="teleop_twist_keyboard.py" name="teleop_keyboard" output="screen">
+    <remap from="/cmd_vel" to="/avoidance_test/cmd_vel_input"/>
+  </node>
+  
+  <!-- 简单的速度控制器，可以被避障命令覆盖 -->
+  <node pkg="obstacle_avoidance_test" type="velocity_controller.py" name="velocity_controller">
+    <remap from="/cmd_vel_input" to="/avoidance_test/cmd_vel_input"/>
+    <remap from="/cmd_vel_avoidance" to="/avoidance_test/cmd_vel"/>
+    <remap from="/emergency_stop" to="/avoidance_test/emergency_stop"/>
+  </node>
+  
+</launch>
