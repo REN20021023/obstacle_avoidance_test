@@ -1,0 +1,51 @@
+<launch>
+  <!-- 命令行参数 -->
+  <arg name="use_lidar" default="true"/>
+  <arg name="use_camera" default="true"/>
+  <arg name="lidar_topic" default="/velodyne_points"/>
+  <arg name="camera_topic" default="/camera/rgb/image_raw"/>
+  <arg name="depth_topic" default="/camera/depth/image_raw"/>
+  <arg name="camera_info_topic" default="/camera/rgb/camera_info"/>
+  
+  <!-- TF变换 -->
+  <node pkg="tf2_ros" type="static_transform_publisher" name="world_to_lidar_frame" 
+        args="0 0 0 0 0 0 world lidar_frame"/>
+  <node pkg="tf2_ros" type="static_transform_publisher" name="world_to_camera_link" 
+        args="0 0 0 0 0 0 world camera_link"/>
+  
+  <!-- 障碍避障测试节点 -->
+  <node pkg="obstacle_avoidance_test" type="obstacle_avoidance_node" name="obstacle_avoidance" output="screen">
+    <!-- 算法参数 -->
+    <param name="algorithm/dbscan_eps" value="0.3"/>
+    <param name="algorithm/dbscan_min_points" value="10"/>
+    <param name="algorithm/voxel_leaf_size" value="0.05"/>
+    <param name="algorithm/max_detection_range" value="10.0"/>
+    <param name="algorithm/min_detection_height" value="-0.5"/>
+    <param name="algorithm/max_detection_height" value="2.0"/>
+    <param name="algorithm/vision_detection_thresh" value="0.5"/>
+    <param name="algorithm/fusion_matching_thresh" value="1.0"/>
+    <param name="algorithm/safe_distance" value="1.5"/>
+    <param name="algorithm/emergency_distance" value="0.8"/>
+    <param name="algorithm/max_avoidance_speed" value="1.0"/>
+    <param name="algorithm/obstacle_lifetime" value="1.0"/>
+    <param name="algorithm/fusion_rate" value="10.0"/>
+    <param name="algorithm/avoidance_rate" value="20.0"/>
+    <param name="algorithm/cleanup_rate" value="2.0"/>
+    
+    <!-- 视觉参数 -->
+    <param name="vision/model_path" value="$(find obstacle_avoidance_test)/config/yolov3.weights"/>
+    <param name="vision/config_path" value="$(find obstacle_avoidance_test)/config/yolov3.cfg"/>
+    <param name="vision/classes_path" value="$(find obstacle_avoidance_test)/config/coco.names"/>
+    
+    <!-- 重映射主题 -->
+    <remap from="/velodyne_points" to="$(arg lidar_topic)" if="$(arg use_lidar)"/>
+    <remap from="/camera/rgb/image_raw" to="$(arg camera_topic)" if="$(arg use_camera)"/>
+    <remap from="/camera/depth/image_raw" to="$(arg depth_topic)" if="$(arg use_camera)"/>
+    <remap from="/camera/rgb/camera_info" to="$(arg camera_info_topic)" if="$(arg use_camera)"/>
+  </node>
+  
+  <!-- 启动RViz可视化 -->
+  <node pkg="rviz" type="rviz" name="rviz" 
+        args="-d $(find obstacle_avoidance_test)/config/avoidance_visualization.rviz"/>
+  
+</launch>
